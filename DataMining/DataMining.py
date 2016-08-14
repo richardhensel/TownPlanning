@@ -22,39 +22,39 @@ class Field:
 #Storage class for Application information before databasing.
 class Application:
     def __init__(self):
-        self.applicationReference    = None
-        self.revisionNumber          = None
-        self.docType                 = None
-        self.decision                = None
-        self.addressOfSite           = None
-        self.realPropertyDescription = None
-        self.numberOfRps             = None
-        self.areaOfSite              = None
-        self.zone                    = None
-        self.nameOfWard              = None
-        self.aspectsOfDevelopment    = None
-        self.descriptionOfProposal   = None
-        self.applicant               = None
-        self.lodgementDate           = None
-        self.properlyMadeDate        = None
+        self.applicationReference    = ""
+        self.revisionNumber          = ""
+        self.docType                 = ""
+        self.decision                = ""
+        self.addressOfSite           = ""
+        self.realPropertyDescription = ""
+        self.numberOfRps             = ""
+        self.areaOfSite              = ""
+        self.zone                    = ""
+        self.nameOfWard              = ""
+        self.aspectsOfDevelopment    = ""
+        self.descriptionOfProposal   = ""
+        self.applicant               = ""
+        self.lodgementDate           = ""
+        self.properlyMadeDate        = ""
 
 #Storage class for RP information before databasing.
 class Rp:
     def __init__(self):
-        self.applicationReference    = None
-        self.revisionNumber          = None
-        self.numberInApplication     = None
-        self.realPropertyNumber      = None
-        self.latitude                = None
-        self.longitude               = None
+        self.applicationReference    = ""
+        self.revisionNumber          = ""
+        self.numberInApplication     = ""
+        self.realPropertyNumber      = ""
+        self.latitude                = ""
+        self.longitude               = ""
 
 class Aspect:
     def __init__(self):
-        self.applicationReference    = None
-        self.revisionNumber          = None
-        self.realPropertyNumber      = None
-        self.latitude                = None
-        self.longitude               = None
+        self.applicationReference    = ""
+        self.revisionNumber          = ""
+        self.realPropertyNumber      = ""
+        self.latitude                = ""
+        self.longitude               = ""
 
 
 #Contains methods for reading an xml file and sorting into storage classes for databasing. 
@@ -214,7 +214,15 @@ class Miner:
         return stringList
 
     def _processApplication(self, fieldList):
+        # Create a list for each table to be modified. 
+        self.appList = []
+        self.rpList = []
+        self.aspectList = []
+
+        # Working storage for application instance. 
         application = Application()
+
+
         for field in fieldList:
             if 'reference' in field.name:
                 application.applicationReference = field.value
@@ -231,18 +239,15 @@ class Miner:
             # Needs to count the number of rps.
             elif 'realproperty' in field.name:
                 application.numberOfRps = field.value.lower().count('rp') 
-                
-
-                rpList = field.value
-
-
+		rpList = field.value.split(",")
+		
             elif 'area' in field.name:
                 application.areaOfSite = field.value
 
             elif 'zone' in field.name:
-                if 'lowmedium' in field.value:
+                if 'lowmedium' in field.value.lower().replace(' ', ''):
                     application.zone = 'LOWMEDIUM'
-                else
+                else:
                     application.zone = 'ERROR'
 
             elif 'ward' in field.name:
@@ -264,28 +269,38 @@ class Miner:
             elif 'properlymade' in field.name:
                 application.properlyMadeDate = field.value
 
-            application.revisionNumber = 1
+        application.revisionNumber = 1
+        self.appList.append(application)
 
-['docType', 'delegate']
-['Address of Site', '12 WILTON TCE YERONGA QLD 4104']
-['Real Property Description', 'L5 RP.59813']
-['Area of Site', '607 m2']
-['Zone', 'LOW MEDIUM DENSITY RESIDENTIAL (2 OR 3 STOREY MIX) ZONE']
-['Name of Ward', 'Tennyson']
-['Aspects of Development', 'DA - SPA - Material Change of Use - Development Permit']
-['Description of Proposal', 'Multiple Dwellings']
-['Applicant', 'Ken and Susan Poggiolic/- Hillocc Pty LtdPO Box 886COORPAROO  QLD 4151']
-['Application Reference', 'A003974498']
-['Lodgement Date', '01 October 2014']
-['Properly Made Date', '10 October 2014']
-['decision', 'refuse']
+        # Create RP list
+        rpCount = 1
+	for rawRp in rpList:
+            rpRow = Rp()
+            rpRow.applicationReference    = self.appList[-1].applicationReference 
+            rpRow.revisionNumber          = "1"
+            rpRow.numberInApplication     = str(rpCount)
+            rpRow.realPropertyNumber      = "".join(c for c in rawRp if c.isdigit())
+            # ^^ This test for integfers is flawed. other numbers can get in
+            rpRow.latitude                = "123"
+            rpRow.longitude               = "456"
+
+            self.rpList.append(rpRow)
+            rpCount += 1
+
+        # Create Aspects list
+        #aspectsCount = 1
+        #for    
+        self.aspectList.append(Aspect()) 
 
 
-    def output(self, xmlPath):
+    def process(self, xmlPath):
         charLines = self._clusterLines(self._verticalSort(xmlPath))
 
         nameValueList = self._getNameValue(self._chaListToString(charLines))
-        return nameValueList        
+
+        self._processApplication(nameValueList)
+
+        #return nameValueList        
 
 class Databaser:
     def __init__(self, path):
@@ -293,6 +308,7 @@ class Databaser:
         self.conn = sqlite3.connect(self.path)
         self.curs = self.conn.cursor()
 
+        self.createTables() 
 
     def createTables(self):
         print "Creating Tables..."
@@ -337,7 +353,7 @@ class Databaser:
         s += ')'
         self.curs.execute(s)
 
-    #def addApplicationLine(self, ):
+    #def addRows(self, appList, rpList, aspectsList):
     
 
 
@@ -345,9 +361,12 @@ class Databaser:
 if __name__ == "__main__":
     miner = Miner()
     xmlPath = 'exml.xml'
-    nameValueList = miner.output(xmlPath)
-
-    for field in nameValueList:
-        print [field.name, field.value]
-    dat = Databaser('bd.db')
-    dat.createTables()
+    miner.process(xmlPath)
+    for line in miner.appList:
+        print line.zone
+    for line in miner.rpList:
+        print line.realPropertyNumber
+    for line in miner.aspectList:
+        print line.applicationReference
+    #dat = Databaser('bd.db')
+    #dat.addRows(miner.appList, miner.rpList, miner.aspectsList)
