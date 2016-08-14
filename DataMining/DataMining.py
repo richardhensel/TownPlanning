@@ -185,7 +185,7 @@ class Miner:
                     # Value is everything after the semicolon.
 
                     # Strings are converted to lower case and have spaces removed. 
-                    fields.append(Field(nameInLine.lower().replace(' ',''), valueInLine.lower().strip()))
+                    fields.append(Field(nameInLine.lower().replace(' ',''), valueInLine.strip()))
                     
                 else:
                     # If a line does not contain a colon, it is part of the value from the 
@@ -238,11 +238,11 @@ class Miner:
 
             # Needs to count the number of rps.
             elif 'realproperty' in field.name:
-                application.numberOfRps = field.value.lower().count('rp') 
+                application.numberOfRps = str(field.value.lower().count('rp'))
 		rpList = field.value.split(",")
 		
             elif 'area' in field.name:
-                application.areaOfSite = field.value
+                application.areaOfSite = field.value.lower().replace(' ', '')
 
             elif 'zone' in field.name:
                 if 'lowmedium' in field.value.lower().replace(' ', ''):
@@ -251,7 +251,7 @@ class Miner:
                     application.zone = 'ERROR'
 
             elif 'ward' in field.name:
-                application.nameOfWard = field.value
+                application.nameOfWard = field.value.lower().replace(' ','')
 
             elif 'aspects' in field.name:
                 application.aspectsOfDevelopment = field.value
@@ -269,7 +269,7 @@ class Miner:
             elif 'properlymade' in field.name:
                 application.properlyMadeDate = field.value
 
-        application.revisionNumber = 1
+        application.revisionNumber = str(1)
         self.appList.append(application)
 
         # Create RP list
@@ -277,12 +277,12 @@ class Miner:
 	for rawRp in rpList:
             rpRow = Rp()
             rpRow.applicationReference    = self.appList[-1].applicationReference 
-            rpRow.revisionNumber          = "1"
+            rpRow.revisionNumber          = '1'
             rpRow.numberInApplication     = str(rpCount)
-            rpRow.realPropertyNumber      = "".join(c for c in rawRp if c.isdigit())
+            rpRow.realPropertyNumber      = ''.join(c for c in rawRp if c.isdigit())
             # ^^ This test for integfers is flawed. other numbers can get in
-            rpRow.latitude                = "123"
-            rpRow.longitude               = "456"
+            rpRow.latitude                = '123'
+            rpRow.longitude               = '456'
 
             self.rpList.append(rpRow)
             rpCount += 1
@@ -308,10 +308,12 @@ class Databaser:
         self.conn = sqlite3.connect(self.path)
         self.curs = self.conn.cursor()
 
-        self.createTables() 
+        try:
+            self.createTables() 
+        except:
+            print 'error creating tables, maybe already exists...'
 
     def createTables(self):
-        print "Creating Tables..."
         # Create Delegate Decisions table.
         s  = 'CREATE TABLE Application ('
         s += 'applicationReference    text,'
@@ -333,7 +335,7 @@ class Databaser:
         self.curs.execute(s)
 
         # Create RP lots table.
-        s  = 'CREATE TABLE RPs ('
+        s  = 'CREATE TABLE Rps ('
         s += 'applicationReference    text,'
         s += 'revisionNumber          text,'
         s += 'numberInApplication     text,'
@@ -353,8 +355,54 @@ class Databaser:
         s += ')'
         self.curs.execute(s)
 
-    #def addRows(self, appList, rpList, aspectsList):
-    
+    def addRows(self, appList, rpList, aspectList):
+
+        # Add to Applications table.
+        for app in appList:
+            s  = 'INSERT INTO Application VALUES(' 
+            s += '"' + app.applicationReference    + '"' + ','
+            s += '"' + app.revisionNumber          + '"' + ','
+            s += '"' + app.docType                 + '"' + ','
+            s += '"' + app.decision                + '"' + ','
+            s += '"' + app.addressOfSite           + '"' + ','
+            s += '"' + app.realPropertyDescription + '"' + ','
+            s += '"' + app.numberOfRps             + '"' + ','
+            s += '"' + app.areaOfSite              + '"' + ','
+            s += '"' + app.zone                    + '"' + ','
+            s += '"' + app.nameOfWard              + '"' + ','
+            s += '"' + app.aspectsOfDevelopment    + '"' + ','
+            s += '"' + app.descriptionOfProposal   + '"' + ','
+            s += '"' + app.applicant               + '"' + ','
+            s += '"' + app.lodgementDate           + '"' + ','
+            s += '"' + app.properlyMadeDate        + '"' 
+            s += ')'
+            self.curs.execute(s)
+            print s
+
+
+        # Add to RP table.
+        for rp in rpList:
+            s  = 'INSERT INTO Rps VALUES ('
+            s += '"' + rp.applicationReference    + '"' + ','
+            s += '"' + rp.revisionNumber          + '"' + ','
+            s += '"' + rp.numberInApplication     + '"' + ','
+            s += '"' + rp.realPropertyNumber      + '"' + ','
+            s += '"' + rp.latitude                + '"' + ','
+            s += '"' + rp.longitude               + '"' 
+            s += ')'
+            self.curs.execute(s)
+            print s
+        # Add to Aspects table.
+        for aspect in aspectList: 
+            s  = 'INSERT INTO Aspects VALUES ('
+            s += '"' + aspect.applicationReference    + '"' + ','
+            s += '"' + aspect.revisionNumber          + '"' + ','
+            s += '"' + aspect.realPropertyNumber      + '"' + ','
+            s += '"' + aspect.latitude                + '"' + ','
+            s += '"' + aspect.longitude               + '"' 
+            s += ')'
+            self.curs.execute(s)
+            print s
 
 
  
@@ -368,5 +416,5 @@ if __name__ == "__main__":
         print line.realPropertyNumber
     for line in miner.aspectList:
         print line.applicationReference
-    #dat = Databaser('bd.db')
-    #dat.addRows(miner.appList, miner.rpList, miner.aspectsList)
+    dat = Databaser('bd.db')
+    dat.addRows(miner.appList, miner.rpList, miner.aspectList)
