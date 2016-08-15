@@ -141,10 +141,12 @@ class Miner:
         documentZone = ''
         for line in lineList:
             #print line
-            if 'DECISION' in line:
+            if 'DECISION' in line.replace(' ','') or 'ECISIO' in line.replace(' ',''):
 
-                if 'DELEGATE' in line:
+                if 'DELEGATE' in line.replace(' ',''):
                     fields.append(Field('doctype', 'delegate'))
+                    print 'delegate'
+                    print [fields[-1].name, fields[-1].value]
 
                 #print 'Decision'
                 decisionStringCount += 1
@@ -155,7 +157,7 @@ class Miner:
                     documentZone = 'reasons'
                 continue
 
-            if 'And Direct That' in line:
+            if 'anddirectthat' in line.replace(' ','').lower():
                 documentZone = 'directions'
 
             if documentZone == 'details':
@@ -191,13 +193,13 @@ class Miner:
                     # If a line does not contain a colon, it is part of the value from the 
                     # previous field.
                     # append line to previous entry.
-                    if len(fields) > 0 : 
-                        fields[-1].value += line.strip()
+                    if len(fields) > 0 and 'doctype' not in fields[-1].name: 
+                        fields[-1].value += ' ' + line.strip()
 
             if documentZone == 'reasons':
-                if 'approve' in line:
+                if 'approve' in line.replace(' ',''):
                     fields.append(Field('decision', 'approve'))
-                if 'refuse' in line:
+                if 'refuse' in line.replace(' ',''):
                     fields.append(Field('decision', 'refuse'))
 
             lineCount += 1
@@ -224,7 +226,7 @@ class Miner:
 
 
         for field in fieldList:
-            if 'reference' in field.name:
+            if 'ationreference' in field.name or 'ationnumber' in field.name:
                 application.applicationReference = field.value
 
             elif 'decision' in field.name:
@@ -273,19 +275,23 @@ class Miner:
         self.appList.append(application)
 
         # Create RP list
-        rpCount = 1
-	for rawRp in rpList:
-            rpRow = Rp()
-            rpRow.applicationReference    = self.appList[-1].applicationReference 
-            rpRow.revisionNumber          = '1'
-            rpRow.numberInApplication     = str(rpCount)
-            rpRow.realPropertyNumber      = ''.join(c for c in rawRp if c.isdigit())
-            # ^^ This test for integfers is flawed. other numbers can get in
-            rpRow.latitude                = '123'
-            rpRow.longitude               = '456'
+        if rpList:
+            rpCount = 1
+	    for rawRp in rpList:
+                rpRow = Rp()
+                rpRow.applicationReference    = self.appList[-1].applicationReference 
+                rpRow.revisionNumber          = '1'
+                rpRow.numberInApplication     = str(rpCount)
+                rpRow.realPropertyNumber      = ''.join(c for c in rawRp if c.isdigit())
+                # ^^ This test for integfers is flawed. other numbers can get in
+                rpRow.latitude                = '123'
+                rpRow.longitude               = '456'
 
-            self.rpList.append(rpRow)
-            rpCount += 1
+                self.rpList.append(rpRow)
+                rpCount += 1
+        # If Rp list is empty
+        else:
+            self.rpList.append(Rp())
 
         # Create Aspects list
         #aspectsCount = 1
@@ -295,8 +301,12 @@ class Miner:
 
     def process(self, xmlPath):
         charLines = self._clusterLines(self._verticalSort(xmlPath))
+        lines = self._chaListToString(charLines)
 
-        nameValueList = self._getNameValue(self._chaListToString(charLines))
+        nameValueList = self._getNameValue(lines)
+        print len(nameValueList)
+        for field in nameValueList:
+            print [field.name, field.value]
 
         self._processApplication(nameValueList)
 
@@ -377,7 +387,6 @@ class Databaser:
             s += '"' + app.properlyMadeDate        + '"' 
             s += ')'
             self.curs.execute(s)
-            print s
 
 
         # Add to RP table.
@@ -391,7 +400,7 @@ class Databaser:
             s += '"' + rp.longitude               + '"' 
             s += ')'
             self.curs.execute(s)
-            print s
+
         # Add to Aspects table.
         for aspect in aspectList: 
             s  = 'INSERT INTO Aspects VALUES ('
@@ -402,13 +411,15 @@ class Databaser:
             s += '"' + aspect.longitude               + '"' 
             s += ')'
             self.curs.execute(s)
-            print s
 
         self.conn.commit()
- 
+
+    def close(self):
+        self.conn.close()
+
 if __name__ == "__main__":
     miner = Miner()
-    xmlPath = 'exml.xml'
+    xmlPath = '../data/delegateDecisionA004336505.xml'
     miner.process(xmlPath)
 
     for line in miner.appList:
