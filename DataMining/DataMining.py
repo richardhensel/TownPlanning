@@ -404,17 +404,19 @@ class Databaser:
             self.curs.execute(s)
             print s
 
-
+        self.conn.commit()
  
 if __name__ == "__main__":
     miner = Miner()
     xmlPath = 'exml.xml'
     miner.process(xmlPath)
+
     for line in miner.appList:
         print line.zone
     for line in miner.rpList:
         print line.realPropertyNumber
     for line in miner.aspectList:
         print line.applicationReference
+
     dat = Databaser('bd.db')
     dat.addRows(miner.appList, miner.rpList, miner.aspectList)
