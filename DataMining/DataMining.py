@@ -167,6 +167,7 @@ class Miner:
 
                 # sort lines into name-containing and non-name-containing
                 # colon indicates whether a line contains a name. 
+                #test if the next column contains a field name and if it is unique.  
                 if ':' in line:
                     nameInLine = ''
                     valueInLine = ''
@@ -188,12 +189,12 @@ class Miner:
 
                     # Strings are converted to lower case and have spaces removed. 
                     fields.append(Field(nameInLine.lower().replace(' ',''), valueInLine.strip()))
-                    
+                        
                 else:
                     # If a line does not contain a colon, it is part of the value from the 
                     # previous field.
                     # append line to previous entry.
-                    if len(fields) > 0 and 'doctype' not in fields[-1].name: 
+                    if len(fields) > 0 and 'doctype' not in fields[-1].name:
                         fields[-1].value += ' ' + line.strip()
 
             if documentZone == 'reasons':
@@ -203,6 +204,15 @@ class Miner:
                     fields.append(Field('decision', 'refuse'))
 
             lineCount += 1
+
+        ## append multiple instances of the same field. 
+        finalFields = []
+        for field1 in fields:
+            for field2 in fields:
+                if field1.name == field2.name and field1.value != field2.value:
+                    finalFields.append(Field(field1.name, field1.value + ',' + field2.value))
+                    
+
         return fields
 
     def _chaListToString(self, charList):
@@ -236,11 +246,13 @@ class Miner:
                 application.docType = field.value
 
             elif 'address' in field.name:
-                application.addresssOfSite = field.value
+                application.addressOfSite += field.value
 
             # Needs to count the number of rps.
             elif 'realproperty' in field.name:
                 application.numberOfRps = str(field.value.lower().count('rp'))
+                application.realPropertyDescription = field.value
+
 		rpList = field.value.split(",")
 		
             elif 'area' in field.name:
@@ -256,14 +268,14 @@ class Miner:
                 application.nameOfWard = field.value.lower().replace(' ','')
 
             elif 'aspects' in field.name:
-                application.aspectsOfDevelopment = field.value
+                application.aspectsOfDevelopment += field.value
                 # create a list of Aspects classes with the aspects contained here. 
             
             elif 'descriptionofproposal' in field.name:
-                application.descriptionOfProposal = field.value
+                application.descriptionOfProposal += field.value
 
             elif 'applicant' in field.name:
-                application.applicant = field.value
+                application.applicant += field.value
 
             elif 'lodgementdate' in field.name:
                 application.lodgementDate = field.value
@@ -298,6 +310,13 @@ class Miner:
         #for    
         self.aspectList.append(Aspect()) 
 
+    def _processRp(self, rpString):
+        secContainsRp = 0
+        for section in rpString.split(','):
+            if 'RP.' in section:
+                
+                for char in section:
+                    
 
     def process(self, xmlPath):
         charLines = self._clusterLines(self._verticalSort(xmlPath))
@@ -333,7 +352,7 @@ class Databaser:
         s += 'addressOfSite           text,'
         s += 'realPropertyDescription text,'
         s += 'numberOfRps             text,'
-        s += 'areaOfSite              text,'
+        s += 'areaOfSite_m2           text,'
         s += 'zone                    text,'
         s += 'nameOfWard              text,'
         s += 'aspectsOfDevelopment    text,'
