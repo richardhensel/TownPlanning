@@ -23,11 +23,11 @@ if __name__ == "__main__":
         pdfPath = dataDir + str(file)
         xmlPath = pdfPath.replace('.pdf', '.xml')
 
-        ## Run the pdf to xml converter
-        bashCommand = wd + '/pdf2txt.py -o ' + xmlPath + ' ' + pdfPath
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output = process.communicate()[0]
-        print output
+        # Run the pdf to xml converter
+        #bashCommand = wd + '/pdf2txt.py -o ' + xmlPath + ' ' + pdfPath
+        #process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+        #output = process.communicate()[0]
+        #print output
 
         miner.process(xmlPath)
         print miner.appList[0].applicationReference

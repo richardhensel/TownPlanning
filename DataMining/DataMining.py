@@ -25,7 +25,7 @@ class Application:
         self.applicationReference    = ""
         self.revisionNumber          = ""
         self.docType                 = ""
-        self.decision                = ""
+        self.approval                = ""
         self.addressOfSite           = ""
         self.realPropertyDescription = ""
         self.numberOfRps             = ""
@@ -44,6 +44,7 @@ class Rp:
         self.applicationReference    = ""
         self.revisionNumber          = ""
         self.numberInApplication     = ""
+        self.realPropertyType        = ""
         self.realPropertyNumber      = ""
         self.latitude                = ""
         self.longitude               = ""
@@ -59,6 +60,12 @@ class Aspect:
 
 #Contains methods for reading an xml file and sorting into storage classes for databasing. 
 class Miner:
+    def __init__(self):
+        # These values could be re-ordered to reduce loop times. 
+        self.rpTypeList = ['B.','C.','K.','L.','M.','P.','S.','V.','W.']
+        self.rpTypeList += ['RP.','SL.','SP.','AP.','CP.','DP.','FP.','MP.','RL.','CG.']
+        self.rpTypeList += ['STP.','SDP.','SPS.','SSP.','USL.','VCL.']
+        self.rpTypeList += ['BIRD.','BUP.','MAR.','GTP.','MPH.','MCP.','MSP.','NPW.','PER.']
 
     def _verticalSort(self, xmlPath = 'exml.xml'):
         xmldoc = minidom.parse(xmlPath)
@@ -145,8 +152,6 @@ class Miner:
 
                 if 'DELEGATE' in line.replace(' ',''):
                     fields.append(Field('doctype', 'delegate'))
-                    print 'delegate'
-                    print [fields[-1].name, fields[-1].value]
 
                 #print 'Decision'
                 decisionStringCount += 1
@@ -199,9 +204,9 @@ class Miner:
 
             if documentZone == 'reasons':
                 if 'approve' in line.replace(' ',''):
-                    fields.append(Field('approved', '1'))
+                    fields.append(Field('approval', '1'))
                 if 'refuse' in line.replace(' ',''):
-                    fields.append(Field('approved', '0'))
+                    fields.append(Field('approval', '0'))
 
             lineCount += 1
 
@@ -234,13 +239,14 @@ class Miner:
         # Working storage for application instance. 
         application = Application()
 
-
+        rpString = ''
         for field in fieldList:
+            
             if 'ationreference' in field.name or 'ationnumber' in field.name:
                 application.applicationReference = field.value
 
-            elif 'decision' in field.name:
-                application.decision = field.value
+            elif 'approval' in field.name:
+                application.approval = field.value
 
             elif 'doctype' in field.name:
                 application.docType = field.value
@@ -253,10 +259,10 @@ class Miner:
                 application.numberOfRps = str(field.value.lower().count('rp'))
                 application.realPropertyDescription = field.value
 
-		rpList = field.value.split(",")
-		
+		rpString += field.value
+
             elif 'area' in field.name:
-                application.areaOfSite = field.value.lower().replace(' ', '')
+                application.areaOfSite = field.value.lower().replace(' ', '').replace('m2','')
 
             elif 'zone' in field.name:
                 if 'lowmedium' in field.value.lower().replace(' ', ''):
@@ -287,20 +293,25 @@ class Miner:
         self.appList.append(application)
 
         # Create RP list
-        if rpList:
+        if len(rpString) > 0:
+            rawRpList = rpString.split(',')
             rpCount = 1
-	    for rawRp in rpList:
-                rpRow = Rp()
-                rpRow.applicationReference    = self.appList[-1].applicationReference 
-                rpRow.revisionNumber          = '1'
-                rpRow.numberInApplication     = str(rpCount)
-                rpRow.realPropertyNumber      = rpRow
-                # ^^ This test for integfers is flawed. other numbers can get in
-                rpRow.latitude                = '123'
-                rpRow.longitude               = '456'
+	    for rawRp in rawRpList:
+                # pull land type and number from string. only proceed if string contains a land type. 
+                rpField = self._rpNumber(rawRp)
+                
+                if rpField:
+                    rpRow = Rp()
+                    rpRow.applicationReference    = self.appList[-1].applicationReference 
+                    rpRow.revisionNumber          = '1'
+                    rpRow.numberInApplication     = str(rpCount)
+                    rpRow.realPropertyType        = rpField.name
+                    rpRow.realPropertyNumber      = rpField.value
+                    rpRow.latitude                = '123'
+                    rpRow.longitude               = '456'
 
-                self.rpList.append(rpRow)
-                rpCount += 1
+                    self.rpList.append(rpRow)
+                    rpCount += 1
         # If Rp list is empty
         else:
             self.rpList.append(Rp())
@@ -309,23 +320,34 @@ class Miner:
         #aspectsCount = 1
         #for    
         self.aspectList.append(Aspect()) 
-
-    def _processRp(self, rpString):
+    # process a fragment of the rp string to pull out rp type and number.
+    # Returns a single Field instance or 0, depending whether the string was valid. 
+    def _rpNumber(self, rpSection):
         secContainsRp = 0
-        for section in rpString.split(','):
-            if 'RP.' in section:
-                
-                for char in section:
-                    
+        for rpType in self.rpTypeList:
+            if rpType in str(rpSection):
+                nameString = rpType
+                secContainsRp = 1
+        
+        if secContainsRp:
+            valueString = ''
+            reachedDot = 0 
+            for char in rpSection:
+                if char is '.':
+                    reachedDot = 1
+                elif reachedDot and char.isdigit():
+                    valueString += char
+            return Field(nameString, valueString)
+        else:
+            return 0
 
     def process(self, xmlPath):
         charLines = self._clusterLines(self._verticalSort(xmlPath))
         lines = self._chaListToString(charLines)
 
         nameValueList = self._getNameValue(lines)
-        print len(nameValueList)
-        for field in nameValueList:
-            print [field.name, field.value]
+        #for field in nameValueList:
+        #    print [field.name, field.value]
 
         self._processApplication(nameValueList)
 
@@ -348,7 +370,7 @@ class Databaser:
         s += 'applicationReference    text,'
         s += 'revisionNumber          text,'
         s += 'docType                 text,'
-        s += 'decision                text,'
+        s += 'approval                text,'
         s += 'addressOfSite           text,'
         s += 'realPropertyDescription text,'
         s += 'numberOfRps             text,'
@@ -368,6 +390,7 @@ class Databaser:
         s += 'applicationReference    text,'
         s += 'revisionNumber          text,'
         s += 'numberInApplication     text,'
+        s += 'realPropertyType        text,'
         s += 'realPropertyNumber      text,'
         s += 'latitude                text,'
         s += 'longitude               text'
@@ -392,7 +415,7 @@ class Databaser:
             s += '"' + app.applicationReference    + '"' + ','
             s += '"' + app.revisionNumber          + '"' + ','
             s += '"' + app.docType                 + '"' + ','
-            s += '"' + app.decision                + '"' + ','
+            s += '"' + app.approval                + '"' + ','
             s += '"' + app.addressOfSite           + '"' + ','
             s += '"' + app.realPropertyDescription + '"' + ','
             s += '"' + app.numberOfRps             + '"' + ','
@@ -414,6 +437,7 @@ class Databaser:
             s += '"' + rp.applicationReference    + '"' + ','
             s += '"' + rp.revisionNumber          + '"' + ','
             s += '"' + rp.numberInApplication     + '"' + ','
+            s += '"' + rp.realPropertyType        + '"' + ','
             s += '"' + rp.realPropertyNumber      + '"' + ','
             s += '"' + rp.latitude                + '"' + ','
             s += '"' + rp.longitude               + '"' 
