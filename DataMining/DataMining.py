@@ -198,9 +198,9 @@ class Miner:
 
             if documentZone == 'reasons':
                 if 'approve' in line.replace(' ',''):
-                    fields.append(Field('decision', 'approve'))
+                    fields.append(Field('approved', '1'))
                 if 'refuse' in line.replace(' ',''):
-                    fields.append(Field('decision', 'refuse'))
+                    fields.append(Field('approved', '0'))
 
             lineCount += 1
         return fields
@@ -282,7 +282,7 @@ class Miner:
                 rpRow.applicationReference    = self.appList[-1].applicationReference 
                 rpRow.revisionNumber          = '1'
                 rpRow.numberInApplication     = str(rpCount)
-                rpRow.realPropertyNumber      = ''.join(c for c in rawRp if c.isdigit())
+                rpRow.realPropertyNumber      = rpRow
                 # ^^ This test for integfers is flawed. other numbers can get in
                 rpRow.latitude                = '123'
                 rpRow.longitude               = '456'
