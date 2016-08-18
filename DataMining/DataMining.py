@@ -53,10 +53,17 @@ class Aspect:
     def __init__(self):
         self.applicationReference    = ""
         self.revisionNumber          = ""
-        self.realPropertyNumber      = ""
-        self.latitude                = ""
-        self.longitude               = ""
+        self.numberInApplication     = ""
+        self.aspect                  = ""
 
+class Description:
+    def __init__(self):
+        self.applicationReference    = ""
+        self.revisionNumber          = ""
+        self.numberInApplication     = ""
+        self.description             = ""
+        self.pre_1946                = ""
+        self.numberOfUnits           = ""
 
 #Contains methods for reading an xml file and sorting into storage classes for databasing. 
 class Miner:
@@ -66,6 +73,16 @@ class Miner:
         self.rpTypeList += ['RP.','SL.','SP.','AP.','CP.','DP.','FP.','MP.','RL.','CG.']
         self.rpTypeList += ['STP.','SDP.','SPS.','SSP.','USL.','VCL.']
         self.rpTypeList += ['BIRD.','BUP.','MAR.','GTP.','MPH.','MCP.','MSP.','NPW.','PER.']
+
+        self.zoneNameList = ['lowdensity','lowmedium','mediumdensity','highdensity','character','tourist']
+        self.zoneNameList += ['principalcentre','majorcentre','districtcentre','neighbourhoodcentre']
+        self.zoneNameList += ['indust','enviro','conserv','community','rural','special','township']
+
+
+        self.aspectNameList = ['materialchangeofuse','carryoutbuildingwork','reconfigurealot','carryoutoperationalwork']
+
+        self.descriptionNameList = ['multipledwelling','1946','reconfig', 's369']
+
 
     def _verticalSort(self, xmlPath = 'exml.xml'):
         xmldoc = minidom.parse(xmlPath)
@@ -235,11 +252,11 @@ class Miner:
         self.appList = []
         self.rpList = []
         self.aspectList = []
+        self.descList = []
 
         # Working storage for application instance. 
         application = Application()
 
-        rpString = ''
         for field in fieldList:
             
             if 'ationreference' in field.name or 'ationnumber' in field.name:
@@ -257,9 +274,7 @@ class Miner:
             # Needs to count the number of rps.
             elif 'realproperty' in field.name:
                 application.numberOfRps = str(field.value.lower().count('rp'))
-                application.realPropertyDescription = field.value
-
-		rpString += field.value
+                application.realPropertyDescription += ',' + field.value
 
             elif 'area' in field.name:
                 application.areaOfSite = field.value.lower().replace(' ', '').replace('m2','')
@@ -274,11 +289,11 @@ class Miner:
                 application.nameOfWard = field.value.lower().replace(' ','')
 
             elif 'aspects' in field.name:
-                application.aspectsOfDevelopment += field.value
+                application.aspectsOfDevelopment += ',' + field.value
                 # create a list of Aspects classes with the aspects contained here. 
             
             elif 'descriptionofproposal' in field.name:
-                application.descriptionOfProposal += field.value
+                application.descriptionOfProposal += ',' + field.value
 
             elif 'applicant' in field.name:
                 application.applicant += field.value
@@ -293,8 +308,9 @@ class Miner:
         self.appList.append(application)
 
         # Create RP list
-        if len(rpString) > 0:
-            rawRpList = rpString.split(',')
+        rpDesc = self.appList[-1].realPropertyDescription
+        if len(rpDesc) > 0:
+            rawRpList = rpDesc.split(',')
             rpCount = 1
 	    for rawRp in rawRpList:
                 # pull land type and number from string. only proceed if string contains a land type. 
@@ -302,8 +318,9 @@ class Miner:
                 
                 if rpField:
                     rpRow = Rp()
+
                     rpRow.applicationReference    = self.appList[-1].applicationReference 
-                    rpRow.revisionNumber          = '1'
+                    rpRow.revisionNumber          = self.appList[-1].revisionNumber
                     rpRow.numberInApplication     = str(rpCount)
                     rpRow.realPropertyType        = rpField.name
                     rpRow.realPropertyNumber      = rpField.value
@@ -319,7 +336,52 @@ class Miner:
         # Create Aspects list
         #aspectsCount = 1
         #for    
-        self.aspectList.append(Aspect()) 
+
+        aspectDesc = self.appList[-1].aspectsOfDevelopment
+        if len(aspectDesc) > 0:
+            rawAspectList = aspectDesc.split(',')
+            aspectCount = 1
+            # Compare each of the raw aspect strings to the list of posible names. 
+	    for rawAspect in rawAspectList:
+                for aspectName in self.aspectNameList:
+                    if aspectName in rawAspect:
+                        aspectRow = Aspect()
+
+                        aspectRow.applicationReference    = self.appList[-1].applicationReference
+                        aspectRow.revisionNumber          = self.appList[-1].revisionNumber
+                        aspectRow.numberInApplication     = str(aspectCount)
+                        aspectRow.aspect                  = aspectName
+
+                        self.aspectList.append(aspectRow) 
+                        aspectCount += 1
+        else:
+            self.aspectList.append(Aspect()) 
+
+
+        descriptionDesc = self.appList[-1].descriptionOfProposal
+        if len(descriptionDesc) > 0:
+            rawDescriptionList = descriptionDesc.split(',')
+            descriptionCount = 1
+            # Compare each of the raw aspect strings to the list of posible names. 
+	    for rawDescription in rawDescriptionList:
+                for descriptionName in self.descriptionNameList:
+                    if descriptionName in rawDescription:
+                        descriptionRow = Description()
+
+                        descriptionRow.applicationReference    = self.appList[-1].applicationReference
+                        descriptionRow.revisionNumber          = self.appList[-1].revisionNumber
+                        descriptionRow.numberInApplication     = str(descriptionCount)
+                        descriptionRow.description             = descriptionName
+                        descriptionRow.pre_1946                = ""
+                        descriptionRow.numberOfUnits           = ""
+
+                        self.descList.append(descriptionRow) 
+                        descriptionCount += 1
+        else:
+            self.descList.append(Description()) 
+
+
+
     # process a fragment of the rp string to pull out rp type and number.
     # Returns a single Field instance or 0, depending whether the string was valid. 
     def _rpNumber(self, rpSection):
@@ -369,6 +431,7 @@ class Databaser:
         s  = 'CREATE TABLE Application ('
         s += 'applicationReference    text,'
         s += 'revisionNumber          text,'
+
         s += 'docType                 text,'
         s += 'approval                text,'
         s += 'addressOfSite           text,'
@@ -390,6 +453,7 @@ class Databaser:
         s += 'applicationReference    text,'
         s += 'revisionNumber          text,'
         s += 'numberInApplication     text,'
+
         s += 'realPropertyType        text,'
         s += 'realPropertyNumber      text,'
         s += 'latitude                text,'
@@ -401,13 +465,27 @@ class Databaser:
         s  = 'CREATE TABLE Aspects ('
         s += 'applicationReference    text,'
         s += 'revisionNumber          text,'
+        s += 'numberInApplication     text,'
+
         s += 'realPropertyNumber      text,'
         s += 'latitude                text,'
         s += 'longitude               text'
         s += ')'
         self.curs.execute(s)
 
-    def addRows(self, appList, rpList, aspectList):
+        s  = 'CREATE TABLE Descriptions ('
+        s += 'applicationReference    text,'
+        s += 'revisionNumber          text,'
+        s += 'numberInApplication     text,'
+
+        s += 'description             text,'
+        s += 'pre_1946                text,'
+        s += 'numberOfUnits           text,'
+        s += ')'
+        self.curs.execute(s)
+
+
+    def addRows(self, appList, rpList, aspectList, descriptionList):
 
         # Add to Applications table.
         for app in appList:
@@ -449,9 +527,20 @@ class Databaser:
             s  = 'INSERT INTO Aspects VALUES ('
             s += '"' + aspect.applicationReference    + '"' + ','
             s += '"' + aspect.revisionNumber          + '"' + ','
-            s += '"' + aspect.realPropertyNumber      + '"' + ','
+            s += '"' + aspect.numberInApplication     + '"' + ','
             s += '"' + aspect.latitude                + '"' + ','
             s += '"' + aspect.longitude               + '"' 
+            s += ')'
+            self.curs.execute(s)
+
+        for description in descriptionList: 
+            s  = 'INSERT INTO Descriptions VALUES ('
+            s += '"' + description.applicationReference    + '"' + ','
+            s += '"' + description.revisionNumber          + '"' + ','
+            s += '"' + description.numberInApplication     + '"' + ','
+            s += '"' + description.description             + '"' + ','
+            s += '"' + description.pre_1946                + '"' + ','
+            s += '"' + description.numberOfUnits           + '"'
             s += ')'
             self.curs.execute(s)
 

@@ -32,7 +32,7 @@ if __name__ == "__main__":
         miner.process(xmlPath)
         print miner.appList[0].applicationReference
     
-        dat.addRows(miner.appList, miner.rpList, miner.aspectList)
+        dat.addRows(miner.appList, miner.rpList, miner.aspectList, miner.descList)
 
         ## Remove the xml file afterwards.
         #bashCommand = 'rm ' +  xmlPath
