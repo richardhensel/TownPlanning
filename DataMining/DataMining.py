@@ -1,6 +1,7 @@
 from xml.dom import minidom
 import heapq
 import sqlite3
+import re
 
 # Class for individual characters coming from XML.
 
@@ -33,10 +34,14 @@ class Application:
         self.zone                    = ""
         self.nameOfWard              = ""
         self.aspectsOfDevelopment    = ""
+        self.numberOfAspects         = ""
         self.descriptionOfProposal   = ""
+        self.numberOfDescriptions    = ""
         self.applicant               = ""
         self.lodgementDate           = ""
         self.properlyMadeDate        = ""
+        self.pre1946                 = ""
+        self.numberOfUnits           = ""
 
 #Storage class for RP information before databasing.
 class Rp:
@@ -62,24 +67,24 @@ class Description:
         self.revisionNumber          = ""
         self.numberInApplication     = ""
         self.description             = ""
-        self.pre_1946                = ""
-        self.numberOfUnits           = ""
 
 #Contains methods for reading an xml file and sorting into storage classes for databasing. 
 class Miner:
     def __init__(self):
         # These values could be re-ordered to reduce loop times. 
-        self.rpTypeList = ['B.','C.','K.','L.','M.','P.','S.','V.','W.']
-        self.rpTypeList += ['RP.','SL.','SP.','AP.','CP.','DP.','FP.','MP.','RL.','CG.']
+
+        self.rpTypeList = ['BIRD.','BUP.','MAR.','GTP.','MPH.','MCP.','MSP.','NPW.','PER.']
         self.rpTypeList += ['STP.','SDP.','SPS.','SSP.','USL.','VCL.']
-        self.rpTypeList += ['BIRD.','BUP.','MAR.','GTP.','MPH.','MCP.','MSP.','NPW.','PER.']
+        self.rpTypeList += ['RP.','SL.','SP.','AP.','CP.','DP.','FP.','MP.','RL.','CG.']
+        self.rpTypeList += ['B.','C.','K.','L.','M.','P.','S.','V.','W.']
 
         self.zoneNameList = ['lowdensity','lowmedium','mediumdensity','highdensity','character','tourist']
         self.zoneNameList += ['principalcentre','majorcentre','districtcentre','neighbourhoodcentre']
         self.zoneNameList += ['indust','enviro','conserv','community','rural','special','township']
+        self.zoneNameList += ['lmr','mixeduse']
 
 
-        self.aspectNameList = ['materialchangeofuse','carryoutbuildingwork','reconfigurealot','carryoutoperationalwork']
+        self.aspectNameList = ['materialchangeofuse','buildingwork','reconfigure','operationalwork']
 
         self.descriptionNameList = ['multipledwelling','1946','reconfig', 's369']
 
@@ -127,7 +132,7 @@ class Miner:
                     continue
 
                 if len(charStack) > 0:
-                    x = charStack[-1].startX + 4.9
+                    x = charStack[-1].startX + 4.9 # 4.9 is roughly the distance between chars
                     y = charStack[-1].startY 
                     size = charStack[-1].size
 
@@ -140,7 +145,7 @@ class Miner:
 
         return heapq.nsmallest(len(charStack), charStack, key = lambda p: p.startY)
 
-    def _clusterLines(self, charList, lineOffset = 3):
+    def _clusterLines(self, charList, lineOffset = 5):
         lineList = [] #list of lineout lists
         line = [] #list of Cha objects
         for i in range(1,len(charList)-1):
@@ -277,16 +282,21 @@ class Miner:
                 application.realPropertyDescription += ',' + field.value
 
             elif 'area' in field.name:
-                application.areaOfSite = field.value.lower().replace(' ', '').replace('m2','')
+                application.areaOfSite = filter(lambda x: x.isdigit(), field.value.lower().replace(' ', '').replace('m2','')) 
 
             elif 'zone' in field.name:
-                if 'lowmedium' in field.value.lower().replace(' ', ''):
-                    application.zone = 'LOWMEDIUM'
-                else:
-                    application.zone = 'ERROR'
-
+                for zoneName in self.zoneNameList:
+                     
+                    if zoneName in field.value.lower().replace(' ', ''):
+                        application.zone = zoneName
+                        break
+                    # This is a bit inefficient. 
+                    else:
+                        application.zone = field.value
+                    
             elif 'ward' in field.name:
-                application.nameOfWard = field.value.lower().replace(' ','')
+                #some wards are multiple comma separated versions of the same name. choose only the first.
+                application.nameOfWard = field.value.lower().replace(' ','').split(',')[0]
 
             elif 'aspects' in field.name:
                 application.aspectsOfDevelopment += ',' + field.value
@@ -294,6 +304,13 @@ class Miner:
             
             elif 'descriptionofproposal' in field.name:
                 application.descriptionOfProposal += ',' + field.value
+
+                # Check description for pre-1946 status and number of units. 
+                if '1946' in field.value:
+                    application.pre1946 = '1'
+            
+                if 'unit' in field.value.lower():
+                    numberOfUnits =  '1'
 
             elif 'applicant' in field.name:
                 application.applicant += field.value
@@ -304,83 +321,89 @@ class Miner:
             elif 'properlymade' in field.name:
                 application.properlyMadeDate = field.value
 
-        application.revisionNumber = str(1)
-        self.appList.append(application)
 
         # Create RP list
-        rpDesc = self.appList[-1].realPropertyDescription
+        rpDesc = application.realPropertyDescription
         if len(rpDesc) > 0:
-            rawRpList = rpDesc.split(',')
-            rpCount = 1
+            rawRpList = re.split(',|&', rpDesc)
+            rpCount = 0
 	    for rawRp in rawRpList:
                 # pull land type and number from string. only proceed if string contains a land type. 
                 rpField = self._rpNumber(rawRp)
                 
                 if rpField:
+                    rpCount += 1
                     rpRow = Rp()
 
-                    rpRow.applicationReference    = self.appList[-1].applicationReference 
-                    rpRow.revisionNumber          = self.appList[-1].revisionNumber
+                    rpRow.applicationReference    = application.applicationReference 
+                    rpRow.revisionNumber          = application.revisionNumber
                     rpRow.numberInApplication     = str(rpCount)
                     rpRow.realPropertyType        = rpField.name
                     rpRow.realPropertyNumber      = rpField.value
                     rpRow.latitude                = '123'
                     rpRow.longitude               = '456'
 
+                    # Append current rp to list. 
                     self.rpList.append(rpRow)
-                    rpCount += 1
         # If Rp list is empty
         else:
             self.rpList.append(Rp())
 
-        # Create Aspects list
-        #aspectsCount = 1
-        #for    
+        application.numberOfRps = str(rpCount)
 
-        aspectDesc = self.appList[-1].aspectsOfDevelopment
+        aspectDesc = application.aspectsOfDevelopment
         if len(aspectDesc) > 0:
-            rawAspectList = aspectDesc.split(',')
-            aspectCount = 1
+            rawAspectList = aspectDesc.lower().replace(' ','').split(',')
+            aspectCount = 0
             # Compare each of the raw aspect strings to the list of posible names. 
 	    for rawAspect in rawAspectList:
                 for aspectName in self.aspectNameList:
                     if aspectName in rawAspect:
+                        aspectCount += 1
                         aspectRow = Aspect()
 
-                        aspectRow.applicationReference    = self.appList[-1].applicationReference
-                        aspectRow.revisionNumber          = self.appList[-1].revisionNumber
+                        aspectRow.applicationReference    = application.applicationReference
+                        aspectRow.revisionNumber          = application.revisionNumber
                         aspectRow.numberInApplication     = str(aspectCount)
                         aspectRow.aspect                  = aspectName
 
+                        # Append current aspect to list. 
                         self.aspectList.append(aspectRow) 
-                        aspectCount += 1
+                        break
         else:
             self.aspectList.append(Aspect()) 
 
+        application.numberOfAspects = str(aspectCount)
 
-        descriptionDesc = self.appList[-1].descriptionOfProposal
+        descriptionDesc = application.descriptionOfProposal
         if len(descriptionDesc) > 0:
-            rawDescriptionList = descriptionDesc.split(',')
-            descriptionCount = 1
+
+            pre1946 = '0'
+            numberOfUnits = '0'
+
+            rawDescriptionList = descriptionDesc.lower().replace(' ','').split(',')
+            descriptionCount = 0
             # Compare each of the raw aspect strings to the list of posible names. 
 	    for rawDescription in rawDescriptionList:
                 for descriptionName in self.descriptionNameList:
                     if descriptionName in rawDescription:
+                        descriptionCount += 1
                         descriptionRow = Description()
 
-                        descriptionRow.applicationReference    = self.appList[-1].applicationReference
-                        descriptionRow.revisionNumber          = self.appList[-1].revisionNumber
+                        descriptionRow.applicationReference    = application.applicationReference
+                        descriptionRow.revisionNumber          = application.revisionNumber
                         descriptionRow.numberInApplication     = str(descriptionCount)
                         descriptionRow.description             = descriptionName
-                        descriptionRow.pre_1946                = ""
-                        descriptionRow.numberOfUnits           = ""
 
+                        # Append current description to list. 
                         self.descList.append(descriptionRow) 
-                        descriptionCount += 1
+                        break
         else:
             self.descList.append(Description()) 
 
-
+        application.numberOfDescriptions = str(aspectCount)
+        # Append the finished application onto to the list. 
+        self.appList.append(application)
 
     # process a fragment of the rp string to pull out rp type and number.
     # Returns a single Field instance or 0, depending whether the string was valid. 
@@ -390,6 +413,7 @@ class Miner:
             if rpType in str(rpSection):
                 nameString = rpType
                 secContainsRp = 1
+                break
         
         if secContainsRp:
             valueString = ''
@@ -406,7 +430,8 @@ class Miner:
     def process(self, xmlPath):
         charLines = self._clusterLines(self._verticalSort(xmlPath))
         lines = self._chaListToString(charLines)
-
+        #for line in lines:
+        #    print line
         nameValueList = self._getNameValue(lines)
         #for field in nameValueList:
         #    print [field.name, field.value]
@@ -441,10 +466,14 @@ class Databaser:
         s += 'zone                    text,'
         s += 'nameOfWard              text,'
         s += 'aspectsOfDevelopment    text,'
+        s += 'numberOfAspects         text,'
         s += 'descriptionOfProposal   text,'
+        s += 'numberOfDescriptions    text,'
         s += 'applicant               text,'
         s += 'lodgementDate           text,'
-        s += 'properlyMadeDate        text'
+        s += 'properlyMadeDate        text,'
+        s += 'pre_1946                text,'
+        s += 'numberOfUnits           text'
         s += ')'
         self.curs.execute(s)
 
@@ -467,9 +496,7 @@ class Databaser:
         s += 'revisionNumber          text,'
         s += 'numberInApplication     text,'
 
-        s += 'realPropertyNumber      text,'
-        s += 'latitude                text,'
-        s += 'longitude               text'
+        s += 'aspect                  text'
         s += ')'
         self.curs.execute(s)
 
@@ -478,9 +505,7 @@ class Databaser:
         s += 'revisionNumber          text,'
         s += 'numberInApplication     text,'
 
-        s += 'description             text,'
-        s += 'pre_1946                text,'
-        s += 'numberOfUnits           text,'
+        s += 'description             text'
         s += ')'
         self.curs.execute(s)
 
@@ -501,10 +526,14 @@ class Databaser:
             s += '"' + app.zone                    + '"' + ','
             s += '"' + app.nameOfWard              + '"' + ','
             s += '"' + app.aspectsOfDevelopment    + '"' + ','
+            s += '"' + app.numberOfAspects         + '"' + ','
             s += '"' + app.descriptionOfProposal   + '"' + ','
+            s += '"' + app.numberOfDescriptions    + '"' + ','
             s += '"' + app.applicant               + '"' + ','
             s += '"' + app.lodgementDate           + '"' + ','
-            s += '"' + app.properlyMadeDate        + '"' 
+            s += '"' + app.properlyMadeDate        + '"' + ','
+            s += '"' + app.pre1946                 + '"' + ','
+            s += '"' + app.numberOfUnits           + '"'
             s += ')'
             self.curs.execute(s)
 
@@ -528,8 +557,7 @@ class Databaser:
             s += '"' + aspect.applicationReference    + '"' + ','
             s += '"' + aspect.revisionNumber          + '"' + ','
             s += '"' + aspect.numberInApplication     + '"' + ','
-            s += '"' + aspect.latitude                + '"' + ','
-            s += '"' + aspect.longitude               + '"' 
+            s += '"' + aspect.aspect                  + '"'
             s += ')'
             self.curs.execute(s)
 
@@ -538,9 +566,7 @@ class Databaser:
             s += '"' + description.applicationReference    + '"' + ','
             s += '"' + description.revisionNumber          + '"' + ','
             s += '"' + description.numberInApplication     + '"' + ','
-            s += '"' + description.description             + '"' + ','
-            s += '"' + description.pre_1946                + '"' + ','
-            s += '"' + description.numberOfUnits           + '"'
+            s += '"' + description.description             + '"'
             s += ')'
             self.curs.execute(s)
 
@@ -551,7 +577,8 @@ class Databaser:
 
 if __name__ == "__main__":
     miner = Miner()
-    xmlPath = '../data/delegateDecisionA004336505.xml'
+    #xmlPath = '../data/delegateDecisionA004336505.xml'
+    xmlPath = '../data/delegateDecisionA004291211.xml'
     miner.process(xmlPath)
 
     for line in miner.appList:
@@ -561,5 +588,5 @@ if __name__ == "__main__":
     for line in miner.aspectList:
         print line.applicationReference
 
-    dat = Databaser('bd.db')
-    dat.addRows(miner.appList, miner.rpList, miner.aspectList)
+    #dat = Databaser('bd.db')
+    #dat.addRows(miner.appList, miner.rpList, miner.aspectList, miner.descList)
