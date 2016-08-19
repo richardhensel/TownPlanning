@@ -41,7 +41,8 @@ class Application:
         self.lodgementDate           = ""
         self.properlyMadeDate        = ""
         self.pre1946                 = ""
-        self.numberOfUnits           = ""
+        self.stages                  = ""
+        self.totalUnits              = ""
 
 #Storage class for RP information before databasing.
 class Rp:
@@ -67,6 +68,8 @@ class Description:
         self.revisionNumber          = ""
         self.numberInApplication     = ""
         self.description             = ""
+        self.numberOfUnits           = ""
+        self.stage                   = ""
 
 #Contains methods for reading an xml file and sorting into storage classes for databasing. 
 class Miner:
@@ -309,8 +312,6 @@ class Miner:
                 if '1946' in field.value:
                     application.pre1946 = '1'
             
-                if 'unit' in field.value.lower():
-                    numberOfUnits =  '1'
 
             elif 'applicant' in field.name:
                 application.applicant += field.value
@@ -378,8 +379,12 @@ class Miner:
         descriptionDesc = application.descriptionOfProposal
         if len(descriptionDesc) > 0:
 
-            pre1946 = '0'
-            numberOfUnits = '0'
+            # temporary counter of units contained within the application if in stages. 
+            unitCount = 0
+            # contains the current max number of units from a description section. 
+            maxUnits = 0
+            # Counter for stages.
+            stages = 0
 
             rawDescriptionList = descriptionDesc.lower().replace(' ','').split(',')
             descriptionCount = 0
@@ -395,13 +400,57 @@ class Miner:
                         descriptionRow.numberInApplication     = str(descriptionCount)
                         descriptionRow.description             = descriptionName
 
+                        #Test for stage number.
+                        if 'stage' in rawDescription:
+                            # First alternative. stage is a digit.
+                            m = re.search("stage(([0-9]*))", rawDescription)
+                            #A hack to differentiate the spelled and the numerical version of stage numbering.
+                            numbers = 0
+                            if m:
+                                descriptionRow.stage               = m.group(1)
+                                stages += 1
+                                print m.group(1)
+                                numbers = 1
+
+                            # Second alternative, stage is a spelled number.
+                            m = re.search("stage(one|two|three|four|five)", rawDescription)
+                            if m and numbers == 0:
+                                descriptionRow.stage               = m.group(1)
+                                stages += 1
+                                print m.group(1)
+
+                        # test for number of units. 
+                        if 'unit' in rawDescription:
+                            m = re.search("([0-9]*)units", rawDescription)
+                            if m:
+                                descriptionRow.numberOfUnits       = m.group(1)
+                                print m.group(1)
+
+                                intUnits = int(m.group(1))
+
+                                if maxUnits < intUnits:
+                                    maxUnits = intUnits
+
+                                #Accumulate the total number of units contained in the application.
+                                if stages > 0:
+                                    unitCount += intUnits
+
                         # Append current description to list. 
                         self.descList.append(descriptionRow) 
                         break
+
+            # There should be at least one stage. 
+            if stages == 0:
+                stages += 1
+
+            application.numberOfDescriptions = str(aspectCount)
+            application.stages = str(stages)
+            application.totalUnits = str(max(maxUnits, unitCount))
         else:
             self.descList.append(Description()) 
 
-        application.numberOfDescriptions = str(aspectCount)
+        # Add the total number of units based on the sum of stages.
+
         # Append the finished application onto to the list. 
         self.appList.append(application)
 
@@ -409,6 +458,7 @@ class Miner:
     # Returns a single Field instance or 0, depending whether the string was valid. 
     def _rpNumber(self, rpSection):
         secContainsRp = 0
+        #Compare the rpstring to the list of possible RP types.
         for rpType in self.rpTypeList:
             if rpType in str(rpSection):
                 nameString = rpType
@@ -473,7 +523,8 @@ class Databaser:
         s += 'lodgementDate           text,'
         s += 'properlyMadeDate        text,'
         s += 'pre_1946                text,'
-        s += 'numberOfUnits           text'
+        s += 'stages                  text,'
+        s += 'totalUnits              text'
         s += ')'
         self.curs.execute(s)
 
@@ -505,7 +556,9 @@ class Databaser:
         s += 'revisionNumber          text,'
         s += 'numberInApplication     text,'
 
-        s += 'description             text'
+        s += 'description             text,'
+        s += 'numberOfUnits           text,'
+        s += 'stage                   text'
         s += ')'
         self.curs.execute(s)
 
@@ -533,7 +586,8 @@ class Databaser:
             s += '"' + app.lodgementDate           + '"' + ','
             s += '"' + app.properlyMadeDate        + '"' + ','
             s += '"' + app.pre1946                 + '"' + ','
-            s += '"' + app.numberOfUnits           + '"'
+            s += '"' + app.stages                  + '"' + ','
+            s += '"' + app.totalUnits              + '"'
             s += ')'
             self.curs.execute(s)
 
@@ -566,7 +620,9 @@ class Databaser:
             s += '"' + description.applicationReference    + '"' + ','
             s += '"' + description.revisionNumber          + '"' + ','
             s += '"' + description.numberInApplication     + '"' + ','
-            s += '"' + description.description             + '"'
+            s += '"' + description.description             + '"' + ','
+            s += '"' + description.numberOfUnits           + '"' + ','
+            s += '"' + description.stage                   + '"'
             s += ')'
             self.curs.execute(s)
 
@@ -578,7 +634,8 @@ class Databaser:
 if __name__ == "__main__":
     miner = Miner()
     #xmlPath = '../data/delegateDecisionA004336505.xml'
-    xmlPath = '../data/delegateDecisionA004291211.xml'
+    #xmlPath = '../data/delegateDecisionA004291211.xml'
+    xmlPath = '../data/delegateDecisionA004227213.xml'
     miner.process(xmlPath)
 
     for line in miner.appList:
