@@ -1,18 +1,17 @@
 import glob, os
 import subprocess
 
-from DataMining import Cha
-from DataMining import Field
-from DataMining import Application
-from DataMining import Rp
-from DataMining import Aspect
-from DataMining import Miner
-from DataMining import Databaser
+
+from Databaser import Databaser, Application, Rp, Aspect, Description
+from XmlParser import XmlParser, Cha
+from DataMining import Miner, Field
+
 
 if __name__ == "__main__":
     wd = str(os.getcwd())
     
     miner = Miner()
+    xmlParser = XmlParser()
     dat = Databaser('bd.db')
 
     dataDir = '../data/'
@@ -29,7 +28,8 @@ if __name__ == "__main__":
         #output = process.communicate()[0]
         #print output
 
-        miner.process(xmlPath)
+        xmlParser.parse(xmlPath)
+        miner.process( xmlParser.returnStrings() )
         print miner.appList[0].applicationReference
     
         dat.addRows(miner.appList, miner.rpList, miner.aspectList, miner.descList)

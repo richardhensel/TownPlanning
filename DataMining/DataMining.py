@@ -1,18 +1,8 @@
-from xml.dom import minidom
-import heapq
-import sqlite3
 import re
 
-# Class for individual characters coming from XML.
+from Databaser import Databaser, Application, Rp, Aspect, Description
+from XmlParser import XmlParser, Cha
 
-class Cha:
-    def __init__(self, pageNum, charId, startX, startY, size, value):
-        self.pageNum = pageNum
-        self.charId = charId
-        self.startX = startX
-        self.startY = startY
-        self.size = size
-        self.value = value
 
 #storage class for name-value pairs before processing.
 class Field:
@@ -20,62 +10,14 @@ class Field:
         self.name = name
         self.value = value
 
-#Storage class for Application information before databasing.
-class Application:
-    def __init__(self):
-        self.applicationReference    = ""
-        self.revisionNumber          = ""
-        self.docType                 = ""
-        self.approval                = ""
-        self.addressOfSite           = ""
-        self.realPropertyDescription = ""
-        self.numberOfRps             = ""
-        self.areaOfSite              = ""
-        self.zone                    = ""
-        self.nameOfWard              = ""
-        self.aspectsOfDevelopment    = ""
-        self.numberOfAspects         = ""
-        self.descriptionOfProposal   = ""
-        self.numberOfDescriptions    = ""
-        self.applicant               = ""
-        self.lodgementDate           = ""
-        self.properlyMadeDate        = ""
-        self.pre1946                 = ""
-        self.stages                  = ""
-        self.totalUnits              = ""
-
-#Storage class for RP information before databasing.
-class Rp:
-    def __init__(self):
-        self.applicationReference    = ""
-        self.revisionNumber          = ""
-        self.numberInApplication     = ""
-        self.realPropertyType        = ""
-        self.realPropertyNumber      = ""
-        self.latitude                = ""
-        self.longitude               = ""
-
-class Aspect:
-    def __init__(self):
-        self.applicationReference    = ""
-        self.revisionNumber          = ""
-        self.numberInApplication     = ""
-        self.aspect                  = ""
-
-class Description:
-    def __init__(self):
-        self.applicationReference    = ""
-        self.revisionNumber          = ""
-        self.numberInApplication     = ""
-        self.description             = ""
-        self.numberOfUnits           = ""
-        self.stage                   = ""
-
+        
 #Contains methods for reading an xml file and sorting into storage classes for databasing. 
+# resultant data is stored as lists of Application, RP, Aspect and Description classes.  
 class Miner:
     def __init__(self):
-        # These values could be re-ordered to reduce loop times. 
-
+        # These values could be re-ordered to reduce loop times.
+ 
+        # lists of expected rp, aspect, zones and descriptions.
         self.rpTypeList = ['BIRD.','BUP.','MAR.','GTP.','MPH.','MCP.','MSP.','NPW.','PER.']
         self.rpTypeList += ['STP.','SDP.','SPS.','SSP.','USL.','VCL.']
         self.rpTypeList += ['RP.','SL.','SP.','AP.','CP.','DP.','FP.','MP.','RL.','CG.']
@@ -92,79 +34,7 @@ class Miner:
         self.descriptionNameList = ['multipledwelling','1946','reconfig', 's369']
 
 
-    def _verticalSort(self, xmlPath = 'exml.xml'):
-        xmldoc = minidom.parse(xmlPath)
-        
-        charList = xmldoc.getElementsByTagName('text')
-        charStack = []
-        charId = 0
-        for cha in charList:
-            # Determine which page the character is located in.
-            parent = cha
-            while True:
-                # Ascent the parent tree until page is reached.
-                parent = parent.parentNode
-                if parent.nodeName == 'page':
-                    pageNum = int(parent.getAttribute('id'))
-                    pageCoords = parent.getAttribute('bbox').split(",")
-                    pageYOffset = pageNum * float(pageCoords[3])
-                    break 
-
-            try:
-                nodeVal = str(cha.childNodes[0].nodeValue)
-                #print 'good char'
-            except:
-                #print 'non-Recognised char'
-                nodeVal = '-'
-
-
-            try:
-                coords = cha.getAttribute('bbox').split(",")
-
-                size = float(cha.getAttribute('size'))
-
-                x = int(float(coords[0]))
-                y = int(pageYOffset - int(float(coords[3]))) 
-                #print 'good params'
-
-                
-            except:
-                #print 'No params'
-
-                if nodeVal == '\n':
-                    continue
-
-                if len(charStack) > 0:
-                    x = charStack[-1].startX + 4.9 # 4.9 is roughly the distance between chars
-                    y = charStack[-1].startY 
-                    size = charStack[-1].size
-
-                else:
-                    x = 0
-                    y = 0 
-                    size = 0
-            charStack.append(Cha(pageNum, charId, x, y, size, nodeVal))
-            charId += 1
-
-        return heapq.nsmallest(len(charStack), charStack, key = lambda p: p.startY)
-
-    def _clusterLines(self, charList, lineOffset = 5):
-        lineList = [] #list of lineout lists
-        line = [] #list of Cha objects
-        for i in range(1,len(charList)-1):
-            currentChar = charList[i]
-            prevChar = charList[i-1]
-            if abs(currentChar.startY - prevChar.startY) < lineOffset:
-                line.append(currentChar)
-            else:
-                line = heapq.nsmallest(len(line), line, key = lambda l: l.startX)
-                lineList.append(line)
-                line = []
-                line.append(currentChar)
-
-        return lineList
-
-
+    # reads strings, identifies if a 
     def _getNameValue(self, lineList):
         fields = []
         lineCount = 0
@@ -245,15 +115,6 @@ class Miner:
 
         return fields
 
-    def _chaListToString(self, charList):
-        stringLine = ''
-        stringList = []
-        for line in charList:
-            for char in line:
-                stringLine += char.value
-            stringList.append(stringLine)
-            stringLine = ''
-        return stringList
 
     def _processApplication(self, fieldList):
         # Create a list for each table to be modified. 
@@ -326,6 +187,7 @@ class Miner:
         # Create RP list
         rpDesc = application.realPropertyDescription
         if len(rpDesc) > 0:
+            # Split the rp string on a comma or anpersand character. 
             rawRpList = re.split(',|&', rpDesc)
             rpCount = 0
 	    for rawRp in rawRpList:
@@ -346,11 +208,12 @@ class Miner:
 
                     # Append current rp to list. 
                     self.rpList.append(rpRow)
+
+            application.numberOfRps = str(rpCount)
         # If Rp list is empty
         else:
             self.rpList.append(Rp())
 
-        application.numberOfRps = str(rpCount)
 
         aspectDesc = application.aspectsOfDevelopment
         if len(aspectDesc) > 0:
@@ -371,10 +234,11 @@ class Miner:
                         # Append current aspect to list. 
                         self.aspectList.append(aspectRow) 
                         break
+
+            application.numberOfAspects = str(aspectCount)
         else:
             self.aspectList.append(Aspect()) 
 
-        application.numberOfAspects = str(aspectCount)
 
         descriptionDesc = application.descriptionOfProposal
         if len(descriptionDesc) > 0:
@@ -404,12 +268,12 @@ class Miner:
                         if 'stage' in rawDescription:
                             # First alternative. stage is a digit.
                             m = re.search("stage(([0-9]*))", rawDescription)
-                            #A hack to differentiate the spelled and the numerical version of stage numbering.
+
+                            #A flag to show if the stage is spelled or is digits. 
                             numbers = 0
                             if m:
                                 descriptionRow.stage               = m.group(1)
                                 stages += 1
-                                print m.group(1)
                                 numbers = 1
 
                             # Second alternative, stage is a spelled number.
@@ -417,17 +281,15 @@ class Miner:
                             if m and numbers == 0:
                                 descriptionRow.stage               = m.group(1)
                                 stages += 1
-                                print m.group(1)
 
                         # test for number of units. 
                         if 'unit' in rawDescription:
                             m = re.search("([0-9]*)units", rawDescription)
                             if m:
                                 descriptionRow.numberOfUnits       = m.group(1)
-                                print m.group(1)
 
                                 intUnits = int(m.group(1))
-
+                                #Update running maximum of units in description
                                 if maxUnits < intUnits:
                                     maxUnits = intUnits
 
@@ -477,166 +339,30 @@ class Miner:
         else:
             return 0
 
-    def process(self, xmlPath):
-        charLines = self._clusterLines(self._verticalSort(xmlPath))
-        lines = self._chaListToString(charLines)
-        #for line in lines:
+    def process(self, lineStrings):
+        #for line in lineStrings:
         #    print line
-        nameValueList = self._getNameValue(lines)
+        nameValueList = self._getNameValue(lineStrings)
         #for field in nameValueList:
         #    print [field.name, field.value]
 
         self._processApplication(nameValueList)
 
-        #return nameValueList        
-
-class Databaser:
-    def __init__(self, path):
-        self.path = path
-        self.conn = sqlite3.connect(self.path)
-        self.curs = self.conn.cursor()
-
-        try:
-            self.createTables() 
-        except:
-            print 'error creating tables, maybe already exists...'
-
-    def createTables(self):
-        # Create Delegate Decisions table.
-        s  = 'CREATE TABLE Application ('
-        s += 'applicationReference    text,'
-        s += 'revisionNumber          text,'
-
-        s += 'docType                 text,'
-        s += 'approval                text,'
-        s += 'addressOfSite           text,'
-        s += 'realPropertyDescription text,'
-        s += 'numberOfRps             text,'
-        s += 'areaOfSite_m2           text,'
-        s += 'zone                    text,'
-        s += 'nameOfWard              text,'
-        s += 'aspectsOfDevelopment    text,'
-        s += 'numberOfAspects         text,'
-        s += 'descriptionOfProposal   text,'
-        s += 'numberOfDescriptions    text,'
-        s += 'applicant               text,'
-        s += 'lodgementDate           text,'
-        s += 'properlyMadeDate        text,'
-        s += 'pre_1946                text,'
-        s += 'stages                  text,'
-        s += 'totalUnits              text'
-        s += ')'
-        self.curs.execute(s)
-
-        # Create RP lots table.
-        s  = 'CREATE TABLE Rps ('
-        s += 'applicationReference    text,'
-        s += 'revisionNumber          text,'
-        s += 'numberInApplication     text,'
-
-        s += 'realPropertyType        text,'
-        s += 'realPropertyNumber      text,'
-        s += 'latitude                text,'
-        s += 'longitude               text'
-        s += ')'
-        self.curs.execute(s)
-  
-        # Create Aspects table.
-        s  = 'CREATE TABLE Aspects ('
-        s += 'applicationReference    text,'
-        s += 'revisionNumber          text,'
-        s += 'numberInApplication     text,'
-
-        s += 'aspect                  text'
-        s += ')'
-        self.curs.execute(s)
-
-        s  = 'CREATE TABLE Descriptions ('
-        s += 'applicationReference    text,'
-        s += 'revisionNumber          text,'
-        s += 'numberInApplication     text,'
-
-        s += 'description             text,'
-        s += 'numberOfUnits           text,'
-        s += 'stage                   text'
-        s += ')'
-        self.curs.execute(s)
-
-
-    def addRows(self, appList, rpList, aspectList, descriptionList):
-
-        # Add to Applications table.
-        for app in appList:
-            s  = 'INSERT INTO Application VALUES(' 
-            s += '"' + app.applicationReference    + '"' + ','
-            s += '"' + app.revisionNumber          + '"' + ','
-            s += '"' + app.docType                 + '"' + ','
-            s += '"' + app.approval                + '"' + ','
-            s += '"' + app.addressOfSite           + '"' + ','
-            s += '"' + app.realPropertyDescription + '"' + ','
-            s += '"' + app.numberOfRps             + '"' + ','
-            s += '"' + app.areaOfSite              + '"' + ','
-            s += '"' + app.zone                    + '"' + ','
-            s += '"' + app.nameOfWard              + '"' + ','
-            s += '"' + app.aspectsOfDevelopment    + '"' + ','
-            s += '"' + app.numberOfAspects         + '"' + ','
-            s += '"' + app.descriptionOfProposal   + '"' + ','
-            s += '"' + app.numberOfDescriptions    + '"' + ','
-            s += '"' + app.applicant               + '"' + ','
-            s += '"' + app.lodgementDate           + '"' + ','
-            s += '"' + app.properlyMadeDate        + '"' + ','
-            s += '"' + app.pre1946                 + '"' + ','
-            s += '"' + app.stages                  + '"' + ','
-            s += '"' + app.totalUnits              + '"'
-            s += ')'
-            self.curs.execute(s)
-
-
-        # Add to RP table.
-        for rp in rpList:
-            s  = 'INSERT INTO Rps VALUES ('
-            s += '"' + rp.applicationReference    + '"' + ','
-            s += '"' + rp.revisionNumber          + '"' + ','
-            s += '"' + rp.numberInApplication     + '"' + ','
-            s += '"' + rp.realPropertyType        + '"' + ','
-            s += '"' + rp.realPropertyNumber      + '"' + ','
-            s += '"' + rp.latitude                + '"' + ','
-            s += '"' + rp.longitude               + '"' 
-            s += ')'
-            self.curs.execute(s)
-
-        # Add to Aspects table.
-        for aspect in aspectList: 
-            s  = 'INSERT INTO Aspects VALUES ('
-            s += '"' + aspect.applicationReference    + '"' + ','
-            s += '"' + aspect.revisionNumber          + '"' + ','
-            s += '"' + aspect.numberInApplication     + '"' + ','
-            s += '"' + aspect.aspect                  + '"'
-            s += ')'
-            self.curs.execute(s)
-
-        for description in descriptionList: 
-            s  = 'INSERT INTO Descriptions VALUES ('
-            s += '"' + description.applicationReference    + '"' + ','
-            s += '"' + description.revisionNumber          + '"' + ','
-            s += '"' + description.numberInApplication     + '"' + ','
-            s += '"' + description.description             + '"' + ','
-            s += '"' + description.numberOfUnits           + '"' + ','
-            s += '"' + description.stage                   + '"'
-            s += ')'
-            self.curs.execute(s)
-
-        self.conn.commit()
-
-    def close(self):
-        self.conn.close()
 
 if __name__ == "__main__":
+    xmlParser = XmlParser()
     miner = Miner()
     #xmlPath = '../data/delegateDecisionA004336505.xml'
     #xmlPath = '../data/delegateDecisionA004291211.xml'
-    xmlPath = '../data/delegateDecisionA004227213.xml'
-    miner.process(xmlPath)
+    #xmlPath = '../data/delegateDecisionA004227213.xml'
+    xmlPath = '../data/delegateDecisionA004232447.xml'
+
+    xmlParser.parse(xmlPath)
+    lineStrings = xmlParser.returnStrings()
+    for line in lineStrings:
+        print line
+
+    miner.process( lineStrings )
 
     for line in miner.appList:
         print line.zone

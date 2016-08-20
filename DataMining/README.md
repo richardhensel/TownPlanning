@@ -10,9 +10,9 @@ create a 'processed data' table and a 'raw data' table
 
 add utc time for submission dates
 
-put all of the expected values into their own class with a set of 'test string' fragments and a 'proper name' which is actually databased
+add lot numbers to the rp table.
 
-put the xml reader into its own class.
+put all of the expected values into their own class with a set of 'test string' fragments and a 'proper name' which is actually databased
 
 get latitude and longitude of each rp
 
@@ -40,3 +40,5 @@ aspects of development may be included under the same or different headings. ext
 get accurate count of number of rps, number of aspects and number of descriptions
 
 populate the number of units column. 
+
+put the xml reader into its own class.
