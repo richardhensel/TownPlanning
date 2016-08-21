@@ -8,3 +8,4 @@
 *.xml
 *.html
 *.txt
+.DS_STORE
