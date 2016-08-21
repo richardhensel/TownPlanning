@@ -19,7 +19,9 @@ class Application:
         self.numberOfDescriptions    = ""
         self.applicant               = ""
         self.lodgementDate           = ""
+        self.lodgementUnix           = ""
         self.properlyMadeDate        = ""
+        self.properlyMadeUnix        = ""
         self.pre1946                 = ""
         self.stages                  = ""
         self.totalUnits              = ""
@@ -85,7 +87,9 @@ class Databaser:
         s += 'numberOfDescriptions    text,'
         s += 'applicant               text,'
         s += 'lodgementDate           text,'
+        s += 'lodgementUnix           text,'
         s += 'properlyMadeDate        text,'
+        s += 'properlyMadeUnix        text,'
         s += 'pre_1946                text,'
         s += 'stages                  text,'
         s += 'totalUnits              text'
@@ -148,7 +152,9 @@ class Databaser:
             s += '"' + app.numberOfDescriptions    + '"' + ','
             s += '"' + app.applicant               + '"' + ','
             s += '"' + app.lodgementDate           + '"' + ','
+            s += '"' + app.lodgementUnix           + '"' + ','
             s += '"' + app.properlyMadeDate        + '"' + ','
+            s += '"' + app.properlyMadeUnix        + '"' + ','
             s += '"' + app.pre1946                 + '"' + ','
             s += '"' + app.stages                  + '"' + ','
             s += '"' + app.totalUnits              + '"'

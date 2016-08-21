@@ -1,4 +1,6 @@
 import re
+from datetime import datetime
+from pytz import timezone
 
 from Databaser import Databaser, Application, Rp, Aspect, Description
 from XmlParser import XmlParser, Cha
@@ -28,11 +30,13 @@ class Miner:
         self.zoneNameList += ['indust','enviro','conserv','community','rural','special','township']
         self.zoneNameList += ['lmr','mixeduse']
 
-
+        
         self.aspectNameList = ['materialchangeofuse','buildingwork','reconfigure','operationalwork']
 
         self.descriptionNameList = ['multipledwelling','1946','reconfig', 's369']
 
+        # datetime object representing the zero of unix time.
+        self.unixZero = timezone('UTC').localize(datetime(1970,1,1))
 
     # reads strings, identifies if a 
     def _getNameValue(self, lineList):
@@ -178,10 +182,23 @@ class Miner:
                 application.applicant += field.value
 
             elif 'lodgementdate' in field.name:
-                application.lodgementDate = field.value
+                m = re.search("([0-9]{2})([a-zA-Z]+)([0-9]{4})", field.value.replace(' ', ''))
+
+                # https://docs.python.org/2/library/datetime.html#strftime-strptime-behavior
+                date = timezone('Australia/Brisbane').localize(datetime.strptime(m.group(1)+m.group(2)+m.group(3) + '12', '%d%B%Y%H'))
+
+                application.lodgementDate = m.group(1) + ' ' + m.group(2) + ' ' + m.group(3)
+                application.lodgementUnix = str(int((date - self.unixZero).total_seconds()))
 
             elif 'properlymade' in field.name:
-                application.properlyMadeDate = field.value
+                m = re.search("([0-9]{2})([a-zA-Z]+)([0-9]{4})", field.value.replace(' ', ''))
+                date = timezone('Australia/Brisbane').localize(datetime.strptime(m.group(1)+m.group(2)+m.group(3) + '12', '%d%B%Y%H'))
+
+                application.properlyMadeDate = m.group(1) + ' ' + m.group(2) + ' ' + m.group(3)
+                application.properlyMadeUnix = str(int((date - self.unixZero).total_seconds()))
+
+                #print application.properlyMadeDate
+                #print timezone('Australia/Brisbane').localize(datetime.fromtimestamp(int(application.properlyMadeUnix)))
 
 
         # Create RP list
@@ -266,19 +283,10 @@ class Miner:
 
                         #Test for stage number.
                         if 'stage' in rawDescription:
-                            # First alternative. stage is a digit.
-                            m = re.search("stage(([0-9]*))", rawDescription)
+                            # string has all spelled numbers converted to integers before testing with regex.
+                            m = re.search("stage(([0-9]*))", self._al2num(rawDescription))
 
-                            #A flag to show if the stage is spelled or is digits. 
-                            numbers = 0
                             if m:
-                                descriptionRow.stage               = m.group(1)
-                                stages += 1
-                                numbers = 1
-
-                            # Second alternative, stage is a spelled number.
-                            m = re.search("stage(one|two|three|four|five)", rawDescription)
-                            if m and numbers == 0:
                                 descriptionRow.stage               = m.group(1)
                                 stages += 1
 
@@ -338,6 +346,20 @@ class Miner:
             return Field(nameString, valueString)
         else:
             return 0
+
+    # replaces spelled numbers with integers.
+    def _al2num(self, string):
+        string = string.replace('one', '1')
+        string = string.replace('two', '2')
+        string = string.replace('three', '3')
+        string = string.replace('four', '4')
+        string = string.replace('five', '5')
+        string = string.replace('six', '6')
+        string = string.replace('seven', '7')
+        string = string.replace('eight', '8')
+        string = string.replace('nine', '9')
+        string = string.replace('ten', '10')
+        return string
 
     def process(self, lineStrings):
         #for line in lineStrings:

@@ -2,19 +2,17 @@
 
 TODO:
 
-tidy up the destinction betwen numeric and alphabetically spelled stage numbers
+create a 'processed data' table and a 'raw data' table
+How far back to go? database each line, each name/value? each field just without tests for regular expressions?
+
+get latitude and longitude of each rp
 
 remove duplicate entries for aspects or descriptions. 
-
-create a 'processed data' table and a 'raw data' table
-
-add utc time for submission dates
 
 add lot numbers to the rp table.
 
 put all of the expected values into their own class with a set of 'test string' fragments and a 'proper name' which is actually databased
 
-get latitude and longitude of each rp
 
 
 DONE: 
@@ -42,3 +40,7 @@ get accurate count of number of rps, number of aspects and number of description
 populate the number of units column. 
 
 put the xml reader into its own class.
+
+add utc time for submission dates
+
+tidy up the destinction betwen numeric and alphabetically spelled stage numbers
