@@ -4,7 +4,7 @@ import subprocess
 
 from Databaser import Databaser, Application, Rp, Aspect, Description
 from XmlParser import XmlParser, Cha
-from DataMining import Miner, Field
+from Miner import Miner, Field
 
 
 if __name__ == "__main__":
