@@ -6,7 +6,7 @@ class Application:
         self.applicationReference    = ""
         self.revisionNumber          = ""
         self.docType                 = ""
-        self.approval                = ""
+        self.decision                = ""
         self.addressOfSite           = ""
         self.realPropertyDescription = ""
         self.numberOfRps             = ""
@@ -68,13 +68,13 @@ class Databaser:
             print 'error creating tables, maybe already exists...'
 
     def createTables(self):
-        # Create Delegate Decisions table.
+        # Create Application table.
         s  = 'CREATE TABLE Application ('
         s += 'applicationReference    text,'
         s += 'revisionNumber          text,'
 
         s += 'docType                 text,'
-        s += 'approval                text,'
+        s += 'decision                text,'
         s += 'addressOfSite           text,'
         s += 'realPropertyDescription text,'
         s += 'numberOfRps             text,'
@@ -132,69 +132,81 @@ class Databaser:
 
 
     def addRows(self, appList, rpList, aspectList, descriptionList):
-
+        
         # Add to Applications table.
         for app in appList:
-            s  = 'INSERT INTO Application VALUES(' 
-            s += '"' + app.applicationReference    + '"' + ','
-            s += '"' + app.revisionNumber          + '"' + ','
-            s += '"' + app.docType                 + '"' + ','
-            s += '"' + app.approval                + '"' + ','
-            s += '"' + app.addressOfSite           + '"' + ','
-            s += '"' + app.realPropertyDescription + '"' + ','
-            s += '"' + app.numberOfRps             + '"' + ','
-            s += '"' + app.areaOfSite              + '"' + ','
-            s += '"' + app.zone                    + '"' + ','
-            s += '"' + app.nameOfWard              + '"' + ','
-            s += '"' + app.aspectsOfDevelopment    + '"' + ','
-            s += '"' + app.numberOfAspects         + '"' + ','
-            s += '"' + app.descriptionOfProposal   + '"' + ','
-            s += '"' + app.numberOfDescriptions    + '"' + ','
-            s += '"' + app.applicant               + '"' + ','
-            s += '"' + app.lodgementDate           + '"' + ','
-            s += '"' + app.lodgementUnix           + '"' + ','
-            s += '"' + app.properlyMadeDate        + '"' + ','
-            s += '"' + app.properlyMadeUnix        + '"' + ','
-            s += '"' + app.pre1946                 + '"' + ','
-            s += '"' + app.stages                  + '"' + ','
-            s += '"' + app.totalUnits              + '"'
-            s += ')'
-            self.curs.execute(s)
+            if app.applicationReference != '':
+                s  = 'INSERT INTO Application VALUES(' 
+                s += '"' + app.applicationReference    + '"' + ','
+                s += '"' + app.revisionNumber          + '"' + ','
+                s += '"' + app.docType                 + '"' + ','
+                s += '"' + app.decision                + '"' + ','
+                s += '"' + app.addressOfSite           + '"' + ','
+                s += '"' + app.realPropertyDescription + '"' + ','
+                s += '"' + app.numberOfRps             + '"' + ','
+                s += '"' + app.areaOfSite              + '"' + ','
+                s += '"' + app.zone                    + '"' + ','
+                s += '"' + app.nameOfWard              + '"' + ','
+                s += '"' + app.aspectsOfDevelopment    + '"' + ','
+                s += '"' + app.numberOfAspects         + '"' + ','
+                s += '"' + app.descriptionOfProposal   + '"' + ','
+                s += '"' + app.numberOfDescriptions    + '"' + ','
+                s += '"' + app.applicant               + '"' + ','
+                s += '"' + app.lodgementDate           + '"' + ','
+                s += '"' + app.lodgementUnix           + '"' + ','
+                s += '"' + app.properlyMadeDate        + '"' + ','
+                s += '"' + app.properlyMadeUnix        + '"' + ','
+                s += '"' + app.pre1946                 + '"' + ','
+                s += '"' + app.stages                  + '"' + ','
+                s += '"' + app.totalUnits              + '"'
+                s += ')'
+                self.curs.execute(s)
+            else:
+                print 'no applications'
 
 
         # Add to RP table.
         for rp in rpList:
-            s  = 'INSERT INTO Rps VALUES ('
-            s += '"' + rp.applicationReference    + '"' + ','
-            s += '"' + rp.revisionNumber          + '"' + ','
-            s += '"' + rp.numberInApplication     + '"' + ','
-            s += '"' + rp.realPropertyType        + '"' + ','
-            s += '"' + rp.realPropertyNumber      + '"' + ','
-            s += '"' + rp.latitude                + '"' + ','
-            s += '"' + rp.longitude               + '"' 
-            s += ')'
-            self.curs.execute(s)
+            if rp.applicationReference != '':
+                s  = 'INSERT INTO Rps VALUES ('
+                s += '"' + rp.applicationReference    + '"' + ','
+                s += '"' + rp.revisionNumber          + '"' + ','
+                s += '"' + rp.numberInApplication     + '"' + ','
+                s += '"' + rp.realPropertyType        + '"' + ','
+                s += '"' + rp.realPropertyNumber      + '"' + ','
+                s += '"' + rp.latitude                + '"' + ','
+                s += '"' + rp.longitude               + '"' 
+                s += ')'
+                self.curs.execute(s)
+            else:
+                print 'no rps'
 
         # Add to Aspects table.
         for aspect in aspectList: 
-            s  = 'INSERT INTO Aspects VALUES ('
-            s += '"' + aspect.applicationReference    + '"' + ','
-            s += '"' + aspect.revisionNumber          + '"' + ','
-            s += '"' + aspect.numberInApplication     + '"' + ','
-            s += '"' + aspect.aspect                  + '"'
-            s += ')'
-            self.curs.execute(s)
+            if aspect.applicationReference != '':
+                s  = 'INSERT INTO Aspects VALUES ('
+                s += '"' + aspect.applicationReference    + '"' + ','
+                s += '"' + aspect.revisionNumber          + '"' + ','
+                s += '"' + aspect.numberInApplication     + '"' + ','
+                s += '"' + aspect.aspect                  + '"'
+                s += ')'
+                self.curs.execute(s)
+            else:
+                print 'no aspects'
 
         for description in descriptionList: 
-            s  = 'INSERT INTO Descriptions VALUES ('
-            s += '"' + description.applicationReference    + '"' + ','
-            s += '"' + description.revisionNumber          + '"' + ','
-            s += '"' + description.numberInApplication     + '"' + ','
-            s += '"' + description.description             + '"' + ','
-            s += '"' + description.numberOfUnits           + '"' + ','
-            s += '"' + description.stage                   + '"'
-            s += ')'
-            self.curs.execute(s)
+            if description.applicationReference != '':
+                s  = 'INSERT INTO Descriptions VALUES ('
+                s += '"' + description.applicationReference    + '"' + ','
+                s += '"' + description.revisionNumber          + '"' + ','
+                s += '"' + description.numberInApplication     + '"' + ','
+                s += '"' + description.description             + '"' + ','
+                s += '"' + description.numberOfUnits           + '"' + ','
+                s += '"' + description.stage                   + '"'
+                s += ')'
+                self.curs.execute(s)
+            else:
+                print 'no descriptions'
 
         self.conn.commit()
 
