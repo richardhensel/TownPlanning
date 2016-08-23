@@ -7,7 +7,8 @@ m = size(X, 1);
 prediction = zeros(size(X, 1), 1);
 
 % Add ones to the X data matrix to account for x0
-X = [ones(m, 1) X];
+X = [ones(m, 1) X]
 
-tempProb = X * theta';
-[output,prediction] = max(tempProb,[],2);
+tempProb = X * theta'
+
+[output,prediction] = max(tempProb,[],2)

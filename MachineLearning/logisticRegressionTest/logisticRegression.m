@@ -8,18 +8,15 @@ fprintf('Loading and Visualizing Data')
 
 load('data.mat');
 
-X = [1,0,0,0;
-    1, 0, 0, 0;
-    -1, 0, 0, 0;
-    -1, 0, 0, 0];
+X = [1,-1,0;
+    -1, 0, -1;
+    0, -1, 0;
+    -1, 0, -1];
     
 
-y = [1;
-     1;
-     0;
-     0];
+y = [20; 0; 10; 0];
     
- XTest = [1, 0, 1, 0.5];
+ XTest = [-1, 0, 0];
 
 % Randomly select 100 data points to display
 sel = randperm(size(X, 1));
