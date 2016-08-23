@@ -6,23 +6,23 @@ close all;
 %t = cputime;
 fprintf('Loading and Visualizing Data')
 
+X = [1,-1,0;
+    -1, 0, -1;
+    0, -1, 0;
+    -1, 0, -1];
+    
 
-X = [9;
-    8.5;
-    1;
-    1.5];
+y = [1; 2; 3; 2];
     
- %y is an index
-y = [2; 2; 1; 1];
-    
- XTest = [9; 1];
+ XTest = [-1, 0, 0; 1, 0, 0 ];
+
  yTest = [2;1];
 
 
 %% Initialize parameters
 fprintf('Initializing parameters');
 m = size(X, 1); % number of examples
-lambda = 0.001; % regularization parameter
+lambda = 0.1; % regularization parameter
 numLabels = size(unique(y),1); % number of labels
 fprintf('...done\n');
 
