@@ -33,7 +33,7 @@ class Miner:
         
         self.aspectNameList = ['materialchangeofuse','buildingwork','reconfigure','operationalwork']
 
-        self.descriptionNameList = ['multipledwelling','1946','reconfig', 's369']
+        self.descriptionNameList = ['multipledwelling','1946','reconfig', 's369', 'dwellinghouse']
 
         # datetime object representing the zero of unix time.
         self.unixZero = timezone('UTC').localize(datetime(1970,1,1))
@@ -103,9 +103,13 @@ class Miner:
 
             if documentZone == 'reasons':
                 if 'approve' in line.replace(' ',''):
-                    fields.append(Field('approval', '1'))
+                    fields.append(Field('decision', 'approve'))
                 if 'refuse' in line.replace(' ',''):
-                    fields.append(Field('approval', '0'))
+                    fields.append(Field('decision', 'refuse'))
+                if 'amend' in line.replace(' ',''):
+                    fields.append(Field('decision', 'amend'))
+                if 'concurrence' in line.replace(' ',''):
+                    fields.append(Field('decision', 'concurrence'))
 
             lineCount += 1
 
@@ -135,8 +139,8 @@ class Miner:
             if 'ationreference' in field.name or 'ationnumber' in field.name:
                 application.applicationReference = field.value
 
-            elif 'approval' in field.name:
-                application.approval = field.value
+            elif 'decision' in field.name:
+                application.decision = field.value
 
             elif 'doctype' in field.name:
                 application.docType = field.value
@@ -184,19 +188,26 @@ class Miner:
             elif 'lodgementdate' in field.name:
                 m = re.search("([0-9]{2})([a-zA-Z]+)([0-9]{4})", field.value.replace(' ', ''))
 
-                # https://docs.python.org/2/library/datetime.html#strftime-strptime-behavior
-                date = timezone('Australia/Brisbane').localize(datetime.strptime(m.group(1)+m.group(2)+m.group(3) + '12', '%d%B%Y%H'))
+                if m:
+                    # https://docs.python.org/2/library/datetime.html#strftime-strptime-behavior
+                    date = timezone('Australia/Brisbane').localize(datetime.strptime(m.group(1)+m.group(2)+m.group(3) + '12', '%d%B%Y%H'))
 
-                application.lodgementDate = m.group(1) + ' ' + m.group(2) + ' ' + m.group(3)
-                application.lodgementUnix = str(int((date - self.unixZero).total_seconds()))
+                    application.lodgementDate = m.group(1) + ' ' + m.group(2) + ' ' + m.group(3)
+                    application.lodgementUnix = str(int((date - self.unixZero).total_seconds()))
+                else:
+                    application.lodgementDate = field.value
 
             elif 'properlymade' in field.name:
                 m = re.search("([0-9]{2})([a-zA-Z]+)([0-9]{4})", field.value.replace(' ', ''))
-                date = timezone('Australia/Brisbane').localize(datetime.strptime(m.group(1)+m.group(2)+m.group(3) + '12', '%d%B%Y%H'))
 
-                application.properlyMadeDate = m.group(1) + ' ' + m.group(2) + ' ' + m.group(3)
-                application.properlyMadeUnix = str(int((date - self.unixZero).total_seconds()))
+                if m:
+                    date = timezone('Australia/Brisbane').localize(datetime.strptime(m.group(1)+m.group(2)+m.group(3) + '12', '%d%B%Y%H'))
 
+                    application.properlyMadeDate = m.group(1) + ' ' + m.group(2) + ' ' + m.group(3)
+                    application.properlyMadeUnix = str(int((date - self.unixZero).total_seconds()))
+                else:
+                    application.properlyMadeDate = field.value 
+                
                 #print application.properlyMadeDate
                 #print timezone('Australia/Brisbane').localize(datetime.fromtimestamp(int(application.properlyMadeUnix)))
 
@@ -377,8 +388,8 @@ if __name__ == "__main__":
     #xmlPath = '../data/delegateDecisionA004336505.xml'
     #xmlPath = '../data/delegateDecisionA004291211.xml'
     #xmlPath = '../data/delegateDecisionA004227213.xml'
-    xmlPath = '../data/delegateDecisionA004232447.xml'
-
+    #xmlPath = '../data/delegateDecisionA004232447.xml'
+    xmlPath = '../data/xml/A004190766DelegateDecision.xml'
     xmlParser.parse(xmlPath)
     lineStrings = xmlParser.returnStrings()
     for line in lineStrings:
