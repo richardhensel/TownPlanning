@@ -186,7 +186,7 @@ class Miner:
                 application.applicant += field.value
 
             elif 'lodgementdate' in field.name:
-                m = re.search("([0-9]{2})([a-zA-Z]+)([0-9]{4})", field.value.replace(' ', ''))
+                m = re.search("([0-9]{1,2})([a-zA-Z]+)([0-9]{4})", field.value.replace(' ', ''))
 
                 if m:
                     # https://docs.python.org/2/library/datetime.html#strftime-strptime-behavior
@@ -198,7 +198,7 @@ class Miner:
                     application.lodgementDate = field.value
 
             elif 'properlymade' in field.name:
-                m = re.search("([0-9]{2})([a-zA-Z]+)([0-9]{4})", field.value.replace(' ', ''))
+                m = re.search("([0-9]{1,2})([a-zA-Z]+)([0-9]{4})", field.value.replace(' ', ''))
 
                 if m:
                     date = timezone('Australia/Brisbane').localize(datetime.strptime(m.group(1)+m.group(2)+m.group(3) + '12', '%d%B%Y%H'))
@@ -376,8 +376,8 @@ class Miner:
         #for line in lineStrings:
         #    print line
         nameValueList = self._getNameValue(lineStrings)
-        #for field in nameValueList:
-        #    print [field.name, field.value]
+        for field in nameValueList:
+            print [field.name, field.value]
 
         self._processApplication(nameValueList)
 
@@ -389,7 +389,10 @@ if __name__ == "__main__":
     #xmlPath = '../data/delegateDecisionA004291211.xml'
     #xmlPath = '../data/delegateDecisionA004227213.xml'
     #xmlPath = '../data/delegateDecisionA004232447.xml'
-    xmlPath = '../data/xml/A004190766DelegateDecision.xml'
+    #xmlPath = '../data/xml/A004190766DelegateDecision.xml'
+    xmlPath = '../data/xml/A004268009DelegateDecision.xml'
+    
+
     xmlParser.parse(xmlPath)
     lineStrings = xmlParser.returnStrings()
     for line in lineStrings:
